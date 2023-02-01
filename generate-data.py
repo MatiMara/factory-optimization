@@ -1,13 +1,15 @@
 import numpy as np
 
-xy = 10
-n = xy**2
-n_sectors = 5
+# xy = 10
+height = 3
+width = 12
+n = height * width
+n_sectors = 4
 
-minX, maxX, minY, maxY = 8, 80, 8, 80
+minX, maxX, minY, maxY = 8, 8*width, 8, 8*height
 
-x = np.linspace(minX, maxX, xy, dtype=int)
-y = np.linspace(minY, maxY, xy, dtype=int)
+x = np.linspace(minX, maxX, width, dtype=int)
+y = np.linspace(minY, maxY, height, dtype=int)
 
 X, Y = np.meshgrid(x, y)
 
@@ -16,7 +18,7 @@ Y = Y.reshape((np.prod(Y.shape),))
 
 print(X, Y)
 
-with open("data2.txt", "w") as f:
+with open("data6.txt", "w") as f:
     f.write("machines_x\n")
     for num in X[:-1]:
         f.write(f"{num},")

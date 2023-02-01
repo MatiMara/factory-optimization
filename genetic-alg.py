@@ -49,7 +49,7 @@ def target(machines: dict, sectors: dict) -> tuple:
 
 def fitness(avg: float, std: float) -> float:
     """The more points the better."""
-    points = 1.0/avg  # + std)
+    points = 1000.0/avg  # + std)
     # print(avg, std)
     return points
 
@@ -57,6 +57,7 @@ def fitness(avg: float, std: float) -> float:
 def selection(population: list, percentage_accepted: int) -> list:
     population.sort(key=lambda x: x.points, reverse=True)
     selected_population = population[:round(len(population) * percentage_accepted / 100)]
+    # print([pts.points for pts in selected_population])
     return selected_population
 
 
@@ -109,24 +110,26 @@ def crossover(selected_population: list, new_pop_size: int, mach_names: list) ->
     return new_population
 
 
-def mutation(specimen: Specimen, mach_names: list, chance=0.3) -> Specimen:
-    if rd.random() < chance:
+def mutation(specimen: Specimen, mach_names: list, chance=0.96) -> Specimen:
+    if rd.random() >= chance * 0.9:
+        rd.shuffle(mach_names)
+        n_sects = len(specimen.sectors.keys())
+        letters = list(string.ascii_uppercase)[:n_sects]
+        sectors = {letter: mach_names[it::n_sects] for it, letter in enumerate(letters)}
+        specimen = Specimen(sectors=sectors, points=0.0)
+    elif rd.random() >= chance:
         rnd_sector1 = rd.choice(list(specimen.sectors.keys()))
         rnd_sector2 = rd.choice([key for key in specimen.sectors.keys() if key != rnd_sector1])
         rnd_machine1 = rd.choice(specimen.sectors[rnd_sector1])
         rnd_machine2 = rd.choice(specimen.sectors[rnd_sector2])
-        specimen.sectors[rnd_sector1] = [machine for machine in specimen.sectors[rnd_sector1] if machine != rnd_machine1]
-        specimen.sectors[rnd_sector2] = [machine for machine in specimen.sectors[rnd_sector2] if machine != rnd_machine2]
+        specimen.sectors[rnd_sector1] = [machine for machine in specimen.sectors[rnd_sector1] if
+                                         machine != rnd_machine1]
+        specimen.sectors[rnd_sector2] = [machine for machine in specimen.sectors[rnd_sector2] if
+                                         machine != rnd_machine2]
         specimen.sectors[rnd_sector1].append(rnd_machine2)
         specimen.sectors[rnd_sector2].append(rnd_machine1)
         rd.shuffle(specimen.sectors[rnd_sector1])
         rd.shuffle(specimen.sectors[rnd_sector2])
-    # else:
-    #     rd.shuffle(mach_names)
-    #     n_sects = len(specimen.sectors.keys())
-    #     letters = list(string.ascii_uppercase)[:n_sects]
-    #     sectors = {letter: mach_names[it::n_sects] for it, letter in enumerate(letters)}
-    #     specimen = Specimen(sectors=sectors, points=0.0)
     return specimen
 
 
@@ -137,12 +140,14 @@ def select_best_specimen(population) -> Specimen:
 
 
 def main() -> None:
-    with open("data2.txt") as f:
+    with open("data4.txt") as f:
         lines = f.readlines()
         machines_x = [int(number) for number in lines[1].split(",")]
         machines_y = [int(number) for number in lines[3].split(",")]
         machine_names = [name for name in lines[5].split(",")]
         n_sectors = int(lines[7])
+
+    num_of_machines = len(machines_x)
 
     machine_names_scopy = machine_names.copy()
     machines_dict = {name: (machines_x[i], machines_y[i]) for i, name in enumerate(machine_names)}
@@ -159,13 +164,13 @@ def main() -> None:
     fig.canvas.draw()
     fig.canvas.flush_events()
 
-    n_first_gen = 100
-    n_next_population = 100
+    n_first_gen = 150
+    n_next_population = 150
     percentage_accepted = 20
 
     population = gen_first_gen(n_sectors, machine_names, n_first_gen)
 
-    best_ever = Specimen(sectors={}, points=9999.0)
+    best_ever = Specimen(sectors={}, points=0.0)
     best_ever_previous = copy(best_ever)
     start = time.time()
     counter = 0
@@ -177,21 +182,21 @@ def main() -> None:
         selected_population = selection(population=population, percentage_accepted=percentage_accepted)
 
         best_spec = select_best_specimen(selected_population)
-        if best_spec.points < best_ever.points:
+        if best_spec.points > best_ever.points:
             best_ever = best_spec
         if best_ever.points == best_ever_previous.points:
             counter += 1
-        if counter >= 150:
+        if counter >= num_of_machines*10:
             break
         best_ever_previous = copy(best_ever)
-        print(f"{i}. Best specimen:\n{best_spec.points}")
+        print(f"{i}. Best specimen: {best_spec.points}")
         # print(f"{i}. Best ever:\n{best_ever.points}")
         print(f"Time: {time.time() - start} s")
 
-        if i % 1 == 0:
+        if i % 10 == 0:
             colors_dict = {}
-            for j, sector in enumerate(best_spec.sectors.keys()):
-                for m_name in best_spec.sectors[sector]:
+            for j, sector in enumerate(best_ever.sectors.keys()):
+                for m_name in best_ever.sectors[sector]:
                     colors_dict[m_name] = colormap[j]
             colors_list = [colors_dict[m_name] for m_name in machine_names_scopy]
             factory_plot.set_color(colors_list)
@@ -200,21 +205,14 @@ def main() -> None:
 
         new_population = crossover(selected_population, n_next_population, machine_names)
         population = new_population
-        time.sleep(0.5)
+        # time.sleep(0.5)
 
     selected_population = selection(population=population, percentage_accepted=percentage_accepted)
     best_spec = select_best_specimen(selected_population)
     if best_spec.points < best_ever.points:
         best_ever = best_spec
 
-    # colors_dict = {}
-    # for j, sector in enumerate(best_ever.sectors.keys()):
-    #     for m_name in best_ever.sectors[sector]:
-    #         colors_dict[m_name] = colormap[j]
-    # colors_list = [colors_dict[m_name] for m_name in machine_names_scopy]
-    # factory_plot.set_color(colors_list)
-    # fig.canvas.draw()
-    # fig.canvas.flush_events()
+    print(f"Best ever: {best_ever.points}")
 
     input()
 
